@@ -14,6 +14,14 @@ export const PLAYER_H = 34;
 export const START_X = 40;
 export const START_Y = GROUND_Y - PLAYER_H;
 
+// A gap narrower than the player's own hitbox can never actually be fallen
+// into — the player's AABB keeps overlapping solid ground on one side or
+// the other the whole way across, so it silently reads as solid floor
+// instead of a hole. Difficulty-intensity scaling on early levels (e.g.
+// easy level 1) could push the randomized/first gap width below this, so
+// every generated gap is floored here regardless of difficulty.
+const MIN_GAP_WIDTH = PLAYER_W + 14;
+
 // Max horizontal distance/height coverable by a single jump held at full run
 // speed the whole time — every generated gap/platform/climb step is kept
 // comfortably under these so every level is guaranteed completable.
@@ -213,7 +221,10 @@ function generateHorizontalLevel(difficulty: Difficulty, levelNumber: number, ra
     // The very first jump is always the easiest possible width, regardless
     // of difficulty, since it's most players' first-ever encounter with a
     // gap in this game.
-    const gapWidth = i === 1 ? p.gapMin : Math.min(randRange(rand, p.gapMin, p.gapMax), MAX_JUMP_DISTANCE * 0.9);
+    const gapWidth =
+      i === 1
+        ? Math.max(MIN_GAP_WIDTH, p.gapMin)
+        : Math.max(MIN_GAP_WIDTH, Math.min(randRange(rand, p.gapMin, p.gapMax), MAX_JUMP_DISTANCE * 0.9));
     const gapStart = cursorX;
     cursorX += gapWidth;
 

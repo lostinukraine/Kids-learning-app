@@ -65,12 +65,20 @@ export default function TimerGate({
         <p className="text-slate-300">
           Ask a parent to start a new timer to keep playing.
         </p>
-        <Link
-          href="/play"
-          className="mt-4 rounded-lg bg-white px-4 py-2 font-semibold text-slate-800"
-        >
-          Back to profiles
-        </Link>
+        <div className="mt-4 flex gap-3">
+          <Link
+            href="/play"
+            className="rounded-lg bg-white px-4 py-2 font-semibold text-slate-800"
+          >
+            Back to profiles
+          </Link>
+          <Link
+            href="/dashboard"
+            className="rounded-lg border border-white px-4 py-2 font-semibold text-white hover:bg-white/10"
+          >
+            👤 Parent dashboard
+          </Link>
+        </div>
       </div>
     );
   }

@@ -118,13 +118,17 @@ const TABLE_POS: Point = { x: 240, y: 190 };
 // World layout for the chunk grid: chunk (0,0) sits to the right of the
 // fixed barn/table landmarks, and every other chunk offset is placed
 // relative to it — the world grows outward in every direction as chunks
-// are bought, instead of along one line.
+// are bought, instead of along one line. CHUNK_OFFSETS includes a "west"
+// neighbor ([-1, 0]) that swings back left of the origin — ORIGIN_CHUNK_X
+// has to stay far enough right that even that westmost ring tile's cell
+// area clears BARN_POS/TABLE_POS (plus their interaction radius), or
+// buying/seeing that plot buries the barn and sell table under farmland.
 const CELL_SIZE = 62;
 const CELL_GAP = 8;
 const CHUNK_PIXELS = 250;
 const CHUNK_CONTENT_SIZE = CHUNK_SIZE * CELL_SIZE + (CHUNK_SIZE + 1) * CELL_GAP;
 const CHUNK_PAD = (CHUNK_PIXELS - CHUNK_CONTENT_SIZE) / 2;
-const ORIGIN_CHUNK_X = 380;
+const ORIGIN_CHUNK_X = 600;
 const ORIGIN_CHUNK_Y = 30;
 
 function chunkOrigin(cx: number, cy: number): Point {
@@ -481,6 +485,7 @@ export default function Farm({ kidId }: { kidId: string }) {
       const state = cellState(cell, progressRef.current.wateringLevel, currentTimeMs());
       if (state === "empty") setCellPicker({ chunkIndex, cellIndex });
       else if (state === "ready") harvestCell(chunkIndex, cellIndex);
+      else if (state === "barn") setScreen("barn");
       return;
     }
     if (near.nearBarn) {
@@ -557,7 +562,6 @@ export default function Farm({ kidId }: { kidId: string }) {
         for (let row = 0; row < CHUNK_SIZE; row++) {
           for (let col = 0; col < CHUNK_SIZE; col++) {
             const idx = row * CHUNK_SIZE + col;
-            if (chunk.cells[idx].content === "barn") continue;
             const center = cellCenter(origin, row, col);
             if (dist(player, center) < INTERACT_RADIUS) {
               nearCell = { chunkIndex: ci, cellIndex: idx };
@@ -991,17 +995,20 @@ export default function Farm({ kidId }: { kidId: string }) {
   const nearCell = nearChunk && nearCellRef ? nearChunk.cells[nearCellRef.cellIndex] : null;
   const nearCellState = nearCell ? cellState(nearCell, progress.wateringLevel, now) : null;
   const anySellable = progress.currentOrders.some((o) => canSellTowardOrder(progress.barn, o));
+  // Any barn — the original landmark, or a plot built via "Build Barn" — opens
+  // the same shared barn screen, since storage is one pooled inventory.
+  const nearAnyBarn = interaction.nearBarn || nearCellState === "barn";
 
-  const actionLabel = nearCellRef
-    ? nearCellState === "empty"
-      ? "🌱 Plant / Build"
-      : nearCellState === "ready"
-        ? "✋ Collect"
-        : "⏳ Growing…"
-    : interaction.nearBarn
-      ? basketUsed > 0
-        ? "🏚️ Open Barn"
-        : "🏚️ Look Inside"
+  const actionLabel = nearAnyBarn
+    ? basketUsed > 0
+      ? "🏚️ Open Barn"
+      : "🏚️ Look Inside"
+    : nearCellRef
+      ? nearCellState === "empty"
+        ? "🌱 Plant / Build"
+        : nearCellState === "ready"
+          ? "✋ Collect"
+          : "⏳ Growing…"
       : interaction.nearTable
         ? progress.currentOrders.length === 0
           ? "No customers yet"
@@ -1011,8 +1018,8 @@ export default function Farm({ kidId }: { kidId: string }) {
         : "Walk around";
 
   const canAct =
+    nearAnyBarn ||
     (nearCellRef !== null && (nearCellState === "empty" || nearCellState === "ready")) ||
-    interaction.nearBarn ||
     (interaction.nearTable && anySellable);
 
   const pickerChunk = cellPicker ? progress.chunks[cellPicker.chunkIndex] : null;

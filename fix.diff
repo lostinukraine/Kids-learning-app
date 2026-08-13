@@ -1,0 +1,169 @@
+diff --git a/src/app/play/[kidId]/page.tsx b/src/app/play/[kidId]/page.tsx
+index 90e0b4c..4beedbb 100644
+--- a/src/app/play/[kidId]/page.tsx
++++ b/src/app/play/[kidId]/page.tsx
+@@ -30,9 +30,17 @@ export default async function KidHomePage({
+                 Hi, {kid.name}!
+               </h1>
+             </div>
+-            <Link href="/play" className="text-sm font-medium text-slate-500">
+-              Switch profile
+-            </Link>
++            <div className="flex items-center gap-4">
++              <Link href="/play" className="text-sm font-medium text-slate-500">
++                Switch profile
++              </Link>
++              <Link
++                href="/dashboard"
++                className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
++              >
++                👤 Parent dashboard
++              </Link>
++            </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+diff --git a/src/components/TimerGate.tsx b/src/components/TimerGate.tsx
+index 88018d4..2579e96 100644
+--- a/src/components/TimerGate.tsx
++++ b/src/components/TimerGate.tsx
+@@ -65,12 +65,20 @@ export default function TimerGate({
+         <p className="text-slate-300">
+           Ask a parent to start a new timer to keep playing.
+         </p>
+-        <Link
+-          href="/play"
+-          className="mt-4 rounded-lg bg-white px-4 py-2 font-semibold text-slate-800"
+-        >
+-          Back to profiles
+-        </Link>
++        <div className="mt-4 flex gap-3">
++          <Link
++            href="/play"
++            className="rounded-lg bg-white px-4 py-2 font-semibold text-slate-800"
++          >
++            Back to profiles
++          </Link>
++          <Link
++            href="/dashboard"
++            className="rounded-lg border border-white px-4 py-2 font-semibold text-white hover:bg-white/10"
++          >
++            👤 Parent dashboard
++          </Link>
++        </div>
+       </div>
+     );
+   }
+diff --git a/src/components/games/Farm.tsx b/src/components/games/Farm.tsx
+index 5352f7f..959af13 100644
+--- a/src/components/games/Farm.tsx
++++ b/src/components/games/Farm.tsx
+@@ -118,13 +118,17 @@ const TABLE_POS: Point = { x: 240, y: 190 };
+ // World layout for the chunk grid: chunk (0,0) sits to the right of the
+ // fixed barn/table landmarks, and every other chunk offset is placed
+ // relative to it — the world grows outward in every direction as chunks
+-// are bought, instead of along one line.
++// are bought, instead of along one line. CHUNK_OFFSETS includes a "west"
++// neighbor ([-1, 0]) that swings back left of the origin — ORIGIN_CHUNK_X
++// has to stay far enough right that even that westmost ring tile's cell
++// area clears BARN_POS/TABLE_POS (plus their interaction radius), or
++// buying/seeing that plot buries the barn and sell table under farmland.
+ const CELL_SIZE = 62;
+ const CELL_GAP = 8;
+ const CHUNK_PIXELS = 250;
+ const CHUNK_CONTENT_SIZE = CHUNK_SIZE * CELL_SIZE + (CHUNK_SIZE + 1) * CELL_GAP;
+ const CHUNK_PAD = (CHUNK_PIXELS - CHUNK_CONTENT_SIZE) / 2;
+-const ORIGIN_CHUNK_X = 380;
++const ORIGIN_CHUNK_X = 600;
+ const ORIGIN_CHUNK_Y = 30;
+
+ function chunkOrigin(cx: number, cy: number): Point {
+@@ -481,6 +485,7 @@ export default function Farm({ kidId }: { kidId: string }) {
+       const state = cellState(cell, progressRef.current.wateringLevel, currentTimeMs());
+       if (state === "empty") setCellPicker({ chunkIndex, cellIndex });
+       else if (state === "ready") harvestCell(chunkIndex, cellIndex);
++      else if (state === "barn") setScreen("barn");
+       return;
+     }
+     if (near.nearBarn) {
+@@ -557,7 +562,6 @@ export default function Farm({ kidId }: { kidId: string }) {
+         for (let row = 0; row < CHUNK_SIZE; row++) {
+           for (let col = 0; col < CHUNK_SIZE; col++) {
+             const idx = row * CHUNK_SIZE + col;
+-            if (chunk.cells[idx].content === "barn") continue;
+             const center = cellCenter(origin, row, col);
+             if (dist(player, center) < INTERACT_RADIUS) {
+               nearCell = { chunkIndex: ci, cellIndex: idx };
+@@ -991,17 +995,20 @@ export default function Farm({ kidId }: { kidId: string }) {
+   const nearCell = nearChunk && nearCellRef ? nearChunk.cells[nearCellRef.cellIndex] : null;
+   const nearCellState = nearCell ? cellState(nearCell, progress.wateringLevel, now) : null;
+   const anySellable = progress.currentOrders.some((o) => canSellTowardOrder(progress.barn, o));
+-
+-  const actionLabel = nearCellRef
+-    ? nearCellState === "empty"
+-      ? "🌱 Plant / Build"
+-      : nearCellState === "ready"
+-        ? "✋ Collect"
+-        : "⏳ Growing…"
+-    : interaction.nearBarn
+-      ? basketUsed > 0
+-        ? "🏚️ Open Barn"
+-        : "🏚️ Look Inside"
++  // Any barn — the original landmark, or a plot built via "Build Barn" — opens
++  // the same shared barn screen, since storage is one pooled inventory.
++  const nearAnyBarn = interaction.nearBarn || nearCellState === "barn";
++
++  const actionLabel = nearAnyBarn
++    ? basketUsed > 0
++      ? "🏚️ Open Barn"
++      : "🏚️ Look Inside"
++    : nearCellRef
++      ? nearCellState === "empty"
++        ? "🌱 Plant / Build"
++        : nearCellState === "ready"
++          ? "✋ Collect"
++          : "⏳ Growing…"
+       : interaction.nearTable
+         ? progress.currentOrders.length === 0
+           ? "No customers yet"
+@@ -1011,8 +1018,8 @@ export default function Farm({ kidId }: { kidId: string }) {
+         : "Walk around";
+
+   const canAct =
++    nearAnyBarn ||
+     (nearCellRef !== null && (nearCellState === "empty" || nearCellState === "ready")) ||
+-    interaction.nearBarn ||
+     (interaction.nearTable && anySellable);
+
+   const pickerChunk = cellPicker ? progress.chunks[cellPicker.chunkIndex] : null;
+diff --git a/src/lib/star-hopper-levels.ts b/src/lib/star-hopper-levels.ts
+index bfa0130..a982693 100644
+--- a/src/lib/star-hopper-levels.ts
++++ b/src/lib/star-hopper-levels.ts
+@@ -14,6 +14,14 @@ export const PLAYER_H = 34;
+ export const START_X = 40;
+ export const START_Y = GROUND_Y - PLAYER_H;
+
++// A gap narrower than the player's own hitbox can never actually be fallen
++// into — the player's AABB keeps overlapping solid ground on one side or
++// the other the whole way across, so it silently reads as solid floor
++// instead of a hole. Difficulty-intensity scaling on early levels (e.g.
++// easy level 1) could push the randomized/first gap width below this, so
++// every generated gap is floored here regardless of difficulty.
++const MIN_GAP_WIDTH = PLAYER_W + 14;
++
+ // Max horizontal distance/height coverable by a single jump held at full run
+ // speed the whole time — every generated gap/platform/climb step is kept
+ // comfortably under these so every level is guaranteed completable.
+@@ -213,7 +221,10 @@ function generateHorizontalLevel(difficulty: Difficulty, levelNumber: number, ra
+     // The very first jump is always the easiest possible width, regardless
+     // of difficulty, since it's most players' first-ever encounter with a
+     // gap in this game.
+-    const gapWidth = i === 1 ? p.gapMin : Math.min(randRange(rand, p.gapMin, p.gapMax), MAX_JUMP_DISTANCE * 0.9);
++    const gapWidth =
++      i === 1
++        ? Math.max(MIN_GAP_WIDTH, p.gapMin)
++        : Math.max(MIN_GAP_WIDTH, Math.min(randRange(rand, p.gapMin, p.gapMax), MAX_JUMP_DISTANCE * 0.9));
+     const gapStart = cursorX;
+     cursorX += gapWidth;
+

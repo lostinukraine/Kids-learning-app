@@ -30,9 +30,17 @@ export default async function KidHomePage({
                 Hi, {kid.name}!
               </h1>
             </div>
-            <Link href="/play" className="text-sm font-medium text-slate-500">
-              Switch profile
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/play" className="text-sm font-medium text-slate-500">
+                Switch profile
+              </Link>
+              <Link
+                href="/dashboard"
+                className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+              >
+                👤 Parent dashboard
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
