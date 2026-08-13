@@ -419,15 +419,16 @@ export default function Farm({ kidId }: { kidId: string }) {
   function fulfillBestOrder() {
     const orders = progressRef.current.currentOrders;
     const barn = progressRef.current.barn;
-    const orderIndex = orders.findIndex((o) => canSellTowardOrder(barn, o));
+    const basket = progressRef.current.basket;
+    const orderIndex = orders.findIndex((o) => canSellTowardOrder(barn, basket, o));
     if (orderIndex === -1) return;
     const order = orders[orderIndex];
-    const sale = sellTowardOrder(barn, order);
+    const sale = sellTowardOrder(barn, basket, order);
     setProgress((p) => {
       const nextOrders = p.currentOrders
         .map((o, i) => (i === orderIndex ? sale.order : o))
         .filter((o): o is CustomerOrder => o !== null);
-      return { ...p, coins: p.coins + sale.earned, barn: sale.barn, currentOrders: nextOrders };
+      return { ...p, coins: p.coins + sale.earned, barn: sale.barn, basket: sale.basket, currentOrders: nextOrders };
     });
     const requestId = ++latestRequestIdRef.current;
     fetch("/api/farm/fulfill-order", {
@@ -635,6 +636,7 @@ export default function Farm({ kidId }: { kidId: string }) {
         }
         const orders = progressRef.current.currentOrders;
         const barnNow = progressRef.current.barn;
+        const basketNow = progressRef.current.basket;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         orders.forEach((order, i) => {
@@ -643,7 +645,7 @@ export default function Farm({ kidId }: { kidId: string }) {
           const ox = TABLE_POS.x - cameraX + (i - 1) * 56;
           const faceY = TABLE_POS.y - cameraY - 62;
           const bubbleY = faceY - 34;
-          const have = barnNow[order.itemId] ?? 0;
+          const have = (barnNow[order.itemId] ?? 0) + (basketNow[order.itemId] ?? 0);
           const canFull = have >= order.quantity;
           const canPartial = have > 0 && !canFull;
           const bg = canFull ? "#dcfce7" : canPartial ? "#fef9c3" : "#ffffff";
@@ -679,7 +681,7 @@ export default function Farm({ kidId }: { kidId: string }) {
           ctx.fillText("🧑", ox, faceY);
         });
         if (nearTable) {
-          const anySellable = orders.some((o) => canSellTowardOrder(barnNow, o));
+          const anySellable = orders.some((o) => canSellTowardOrder(barnNow, basketNow, o));
           ctx.strokeStyle = anySellable ? "#facc15" : "rgba(250,204,21,0.4)";
           ctx.lineWidth = 3;
           ctx.setLineDash([6, 6]);
@@ -994,7 +996,7 @@ export default function Farm({ kidId }: { kidId: string }) {
   const nearChunk = nearCellRef ? progress.chunks[nearCellRef.chunkIndex] : null;
   const nearCell = nearChunk && nearCellRef ? nearChunk.cells[nearCellRef.cellIndex] : null;
   const nearCellState = nearCell ? cellState(nearCell, progress.wateringLevel, now) : null;
-  const anySellable = progress.currentOrders.some((o) => canSellTowardOrder(progress.barn, o));
+  const anySellable = progress.currentOrders.some((o) => canSellTowardOrder(progress.barn, progress.basket, o));
   // Any barn — the original landmark, or a plot built via "Build Barn" — opens
   // the same shared barn screen, since storage is one pooled inventory.
   const nearAnyBarn = interaction.nearBarn || nearCellState === "barn";

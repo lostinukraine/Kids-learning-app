@@ -404,30 +404,50 @@ export function canFulfillOrder(barn: Barn, order: CustomerOrder): boolean {
 // per-unit rate and leaves the order open for the rest at a reduced
 // quantity/reward; selling the full remaining amount completes it (caller
 // should drop the order from the list when result.order is null).
-export function canSellTowardOrder(barn: Barn, order: CustomerOrder): boolean {
-  return (barn[order.itemId] ?? 0) > 0;
+//
+// Counts basket contents alongside the barn's — the barn can sit at total
+// capacity with items no current order wants, which would otherwise leave a
+// freshly-harvested, order-matching item stuck in the basket with no room to
+// deposit it and no way to sell it either.
+export function canSellTowardOrder(barn: Barn, basket: Basket, order: CustomerOrder): boolean {
+  return (barn[order.itemId] ?? 0) + (basket[order.itemId] ?? 0) > 0;
 }
 
 export function sellTowardOrder(
   barn: Barn,
+  basket: Basket,
   order: CustomerOrder,
-): { barn: Barn; order: CustomerOrder | null; earned: number } {
-  const have = barn[order.itemId] ?? 0;
+): { barn: Barn; basket: Basket; order: CustomerOrder | null; earned: number } {
+  const barnHave = barn[order.itemId] ?? 0;
+  const basketHave = basket[order.itemId] ?? 0;
+  const have = barnHave + basketHave;
   const amount = Math.min(have, order.quantity);
-  if (amount <= 0) return { barn, order, earned: 0 };
+  if (amount <= 0) return { barn, basket, order, earned: 0 };
+
+  // Draw from the barn first, then the basket for any remainder.
+  const fromBarn = Math.min(barnHave, amount);
+  const fromBasket = amount - fromBarn;
 
   const nextBarn = { ...barn };
-  nextBarn[order.itemId] = have - amount;
-  if (nextBarn[order.itemId] <= 0) delete nextBarn[order.itemId];
+  if (fromBarn > 0) {
+    nextBarn[order.itemId] = barnHave - fromBarn;
+    if (nextBarn[order.itemId] <= 0) delete nextBarn[order.itemId];
+  }
+  const nextBasket = { ...basket };
+  if (fromBasket > 0) {
+    nextBasket[order.itemId] = basketHave - fromBasket;
+    if (nextBasket[order.itemId] <= 0) delete nextBasket[order.itemId];
+  }
 
   const perUnit = order.reward / order.quantity;
   if (amount >= order.quantity) {
-    return { barn: nextBarn, order: null, earned: order.reward };
+    return { barn: nextBarn, basket: nextBasket, order: null, earned: order.reward };
   }
   const earned = Math.round(perUnit * amount);
   const remainingQuantity = order.quantity - amount;
   return {
     barn: nextBarn,
+    basket: nextBasket,
     order: { ...order, quantity: remainingQuantity, reward: Math.round(perUnit * remainingQuantity) },
     earned,
   };

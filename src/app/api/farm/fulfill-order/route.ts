@@ -5,12 +5,14 @@ import { prisma } from "@/lib/prisma";
 import {
   availableOrderItemIds,
   barnToJson,
+  basketToJson,
   canSellTowardOrder,
   fillOrders,
   ordersToJson,
   pruneStaleOrders,
   sellTowardOrder,
   type Barn,
+  type Basket,
   type Chunk,
   type CustomerOrder,
 } from "@/lib/farm";
@@ -49,11 +51,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "no active order" }, { status: 400 });
   }
   const barn = progress.barn as unknown as Barn;
-  if (!canSellTowardOrder(barn, order)) {
+  const basket = progress.basket as unknown as Basket;
+  if (!canSellTowardOrder(barn, basket, order)) {
     return NextResponse.json({ error: "not enough stock" }, { status: 400 });
   }
 
-  const sale = sellTowardOrder(barn, order);
+  const sale = sellTowardOrder(barn, basket, order);
 
   const chunks = progress.chunks as unknown as Chunk[];
   // A completed order (sale.order === null) drops out of the list; a
@@ -67,6 +70,7 @@ export async function POST(req: NextRequest) {
     data: {
       coins: progress.coins + sale.earned,
       barn: barnToJson(sale.barn),
+      basket: basketToJson(sale.basket),
       currentOrders: ordersToJson(nextOrders),
     },
   });
