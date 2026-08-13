@@ -369,19 +369,37 @@ export default function Farm({ kidId }: { kidId: string }) {
     const autoHarvest = progressRef.current.autoHarvest;
     const isCrop = cell.content === "crop";
     const nextCell: Cell = isCrop ? harvestCropCell() : collectAnimalCell(cell);
-    setProgress((p) => {
-      const nextChunks = p.chunks.map((c, ci) =>
-        ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cc, i) => (i === cellIndex ? nextCell : cc)) },
-      );
-      if (autoHarvest) {
-        const barn = { ...p.barn };
-        addToBarn(barn, itemId, totalBarnCapacity(p.chunks));
-        return { ...p, chunks: nextChunks, barn };
+
+    // Check whether the item actually has anywhere to go *before* consuming
+    // the crop/animal cell — addToBarn/addToBasket return whether it fit,
+    // and ignoring that (as this used to) let a full barn/basket silently
+    // swallow the harvest: the cell still flipped to harvested and a
+    // "Picked!" toast still fired, but the item vanished into nothing.
+    if (autoHarvest) {
+      const barn = { ...progressRef.current.barn };
+      if (!addToBarn(barn, itemId, totalBarnCapacity(progressRef.current.chunks))) {
+        showToast("🏚️ Barn's full! Sell to a customer or build another barn.");
+        return;
       }
-      const basket = { ...p.basket };
-      addToBasket(basket, itemId, 1);
-      return { ...p, chunks: nextChunks, basket };
-    });
+      setProgress((p) => {
+        const nextChunks = p.chunks.map((c, ci) =>
+          ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cc, i) => (i === cellIndex ? nextCell : cc)) },
+        );
+        return { ...p, chunks: nextChunks, barn };
+      });
+    } else {
+      const basket = { ...progressRef.current.basket };
+      if (addToBasket(basket, itemId, 1) === 0) {
+        showToast("🧺 Basket's full! Walk to the barn to deposit it.");
+        return;
+      }
+      setProgress((p) => {
+        const nextChunks = p.chunks.map((c, ci) =>
+          ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cc, i) => (i === cellIndex ? nextCell : cc)) },
+        );
+        return { ...p, chunks: nextChunks, basket };
+      });
+    }
     syncInBackground("/api/farm/harvest-cell", { kidId, chunkIndex, cellIndex });
     showToast(`${isCrop ? "Picked" : "Collected"} ${item.emoji} ${item.name}!`);
   }
