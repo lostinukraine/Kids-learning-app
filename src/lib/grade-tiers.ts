@@ -29,3 +29,9 @@ export function tierForGrade(grade: GradeLevel): Tier {
 export function gradeLabel(grade: GradeLevel): string {
   return GRADE_LEVELS.find((g) => g.value === grade)?.label ?? grade;
 }
+
+// Numeric position in GRADE_LEVELS (PRE_K=0 .. FIFTH=6), for comparing two
+// grades or clamping a game's min/max-grade range against a kid's grade.
+export function gradeIndex(grade: GradeLevel): number {
+  return GRADE_LEVELS.findIndex((g) => g.value === grade);
+}

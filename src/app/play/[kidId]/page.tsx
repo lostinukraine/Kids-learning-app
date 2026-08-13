@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { avatarEmoji } from "@/lib/avatars";
-import { GAMES_CATALOG } from "@/lib/games-catalog";
+import { GAMES_CATALOG, isGameAvailable } from "@/lib/games-catalog";
 import TimerGate from "@/components/TimerGate";
 
 export default async function KidHomePage({
@@ -44,7 +44,7 @@ export default async function KidHomePage({
           </div>
 
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-            {GAMES_CATALOG.map((game) => (
+            {GAMES_CATALOG.filter((game) => isGameAvailable(game, kid.mathGradeLevel, kid.readingGradeLevel)).map((game) => (
               <Link
                 key={game.slug}
                 href={`/play/${kid.id}/${game.slug}`}

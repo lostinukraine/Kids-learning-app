@@ -45,7 +45,7 @@ export default function GameShell({
           <h1 className="text-xl font-bold text-slate-800">{gameName}</h1>
           <Link
             href={`/play/${kidId}`}
-            className="text-sm font-medium text-slate-500"
+            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
           >
             ← Back to games
           </Link>

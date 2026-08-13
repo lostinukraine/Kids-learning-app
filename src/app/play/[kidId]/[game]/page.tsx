@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getGame } from "@/lib/games-catalog";
+import { getGame, isGameAvailable } from "@/lib/games-catalog";
 import { tierForGrade } from "@/lib/grade-tiers";
 import TimerGate from "@/components/TimerGate";
 import GameShell from "@/components/GameShell";
@@ -21,6 +21,10 @@ export default async function GamePage({
 
   const entry = getGame(game);
   if (!entry) notFound();
+  // A bookmarked/direct URL could still point at a game hidden from this
+  // kid's grade range (see games-catalog.ts) — the tile list already
+  // filters these out, but re-check here too rather than trusting the URL.
+  if (!isGameAvailable(entry, kid.mathGradeLevel, kid.readingGradeLevel)) redirect(`/play/${kid.id}`);
 
   return (
     <TimerGate kidId={kid.id}>
