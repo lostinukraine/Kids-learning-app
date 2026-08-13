@@ -5,9 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   CELLS_PER_CHUNK,
-  addToBarn,
   addToBasket,
-  barnToJson,
   basketToJson,
   cellSellableItemId,
   cellState,
@@ -15,8 +13,6 @@ import {
   collectAnimalCell,
   getSellableItem,
   harvestCropCell,
-  totalBarnCapacity,
-  type Barn,
   type Basket,
   type Chunk,
 } from "@/lib/farm";
@@ -70,20 +66,13 @@ export async function POST(req: NextRequest) {
     ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cell2, i) => (i === cellIndex ? nextCell : cell2)) },
   );
 
-  let data: Prisma.FarmProgressUpdateInput;
-  if (progress.autoHarvest) {
-    const barn = progress.barn as unknown as Barn;
-    if (!addToBarn(barn, itemId, totalBarnCapacity(chunks))) {
-      return NextResponse.json({ error: "barn full" }, { status: 400 });
-    }
-    data = { chunks: chunksToJson(nextChunks), barn: barnToJson(barn) };
-  } else {
-    const basket = progress.basket as unknown as Basket;
-    if (addToBasket(basket, itemId, 1) === 0) {
-      return NextResponse.json({ error: "basket full" }, { status: 400 });
-    }
-    data = { chunks: chunksToJson(nextChunks), basket: basketToJson(basket) };
+  // Interactive harvesting always goes to the basket, regardless of owning
+  // auto-harvest — see the matching comment in Farm.tsx's harvestCell.
+  const basket = progress.basket as unknown as Basket;
+  if (addToBasket(basket, itemId, 1) === 0) {
+    return NextResponse.json({ error: "basket full" }, { status: 400 });
   }
+  const data: Prisma.FarmProgressUpdateInput = { chunks: chunksToJson(nextChunks), basket: basketToJson(basket) };
 
   const updated = await prisma.farmProgress.update({ where: { kidId }, data });
 

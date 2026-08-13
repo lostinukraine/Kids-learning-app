@@ -11,7 +11,6 @@ import {
   CHUNK_SIZE,
   CROPS,
   MAX_CHUNKS,
-  addToBarn,
   addToBasket,
   animalCost,
   availableOrderItemIds,
@@ -366,40 +365,34 @@ export default function Farm({ kidId }: { kidId: string }) {
     const itemId = cellSellableItemId(cell);
     const item = itemId ? getSellableItem(itemId) : undefined;
     if (!itemId || !item) return;
-    const autoHarvest = progressRef.current.autoHarvest;
     const isCrop = cell.content === "crop";
     const nextCell: Cell = isCrop ? harvestCropCell() : collectAnimalCell(cell);
 
-    // Check whether the item actually has anywhere to go *before* consuming
-    // the crop/animal cell — addToBarn/addToBasket return whether it fit,
-    // and ignoring that (as this used to) let a full barn/basket silently
+    // Interactive harvesting (walking up and pressing the action button)
+    // always goes to the basket the kid is carrying, regardless of owning
+    // auto-harvest — auto-harvest's straight-to-barn behavior is for the
+    // background/offline catch-up (see simulateAutoCycles, run from the
+    // progress-poll route) that works "even while you're away." Without this
+    // split, a full barn left a ready item with nowhere to go: the kid
+    // couldn't deposit (barn full) and couldn't manually carry it to a
+    // customer either, even though the basket had room.
+    //
+    // Also checks whether the item actually has anywhere to go *before*
+    // consuming the crop/animal cell — addToBasket returns whether it fit,
+    // and ignoring that (as this used to) let a full basket silently
     // swallow the harvest: the cell still flipped to harvested and a
     // "Picked!" toast still fired, but the item vanished into nothing.
-    if (autoHarvest) {
-      const barn = { ...progressRef.current.barn };
-      if (!addToBarn(barn, itemId, totalBarnCapacity(progressRef.current.chunks))) {
-        showToast("🏚️ Barn's full! Sell to a customer or build another barn.");
-        return;
-      }
-      setProgress((p) => {
-        const nextChunks = p.chunks.map((c, ci) =>
-          ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cc, i) => (i === cellIndex ? nextCell : cc)) },
-        );
-        return { ...p, chunks: nextChunks, barn };
-      });
-    } else {
-      const basket = { ...progressRef.current.basket };
-      if (addToBasket(basket, itemId, 1) === 0) {
-        showToast("🧺 Basket's full! Walk to the barn to deposit it.");
-        return;
-      }
-      setProgress((p) => {
-        const nextChunks = p.chunks.map((c, ci) =>
-          ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cc, i) => (i === cellIndex ? nextCell : cc)) },
-        );
-        return { ...p, chunks: nextChunks, basket };
-      });
+    const basket = { ...progressRef.current.basket };
+    if (addToBasket(basket, itemId, 1) === 0) {
+      showToast("🧺 Basket's full! Walk to the barn to deposit it.");
+      return;
     }
+    setProgress((p) => {
+      const nextChunks = p.chunks.map((c, ci) =>
+        ci !== chunkIndex ? c : { ...c, cells: c.cells.map((cc, i) => (i === cellIndex ? nextCell : cc)) },
+      );
+      return { ...p, chunks: nextChunks, basket };
+    });
     syncInBackground("/api/farm/harvest-cell", { kidId, chunkIndex, cellIndex });
     showToast(`${isCrop ? "Picked" : "Collected"} ${item.emoji} ${item.name}!`);
   }
@@ -1178,7 +1171,7 @@ function TouchBtn({
       onPointerLeave={onUp}
       onPointerCancel={onUp}
       disabled={disabled}
-      className={`touch-none select-none ${wide ? "px-6 text-base" : "px-5 text-3xl"} h-16 rounded-2xl bg-white font-bold text-slate-900 shadow active:bg-sky-50 disabled:opacity-40`}
+      className={`touch-none select-none ${wide ? "h-14 px-6 text-base" : "h-14 w-14 text-2xl"} rounded-2xl bg-white font-bold text-slate-900 shadow active:bg-sky-50 disabled:opacity-40`}
     >
       {label}
     </button>

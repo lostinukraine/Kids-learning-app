@@ -433,7 +433,7 @@ export default function MathFacts({ kidId, grade }: { kidId: string; grade: Grad
           onPointerDown={() => pressDir("ArrowLeft")}
           onPointerUp={() => releaseDir("ArrowLeft")}
           onPointerLeave={() => releaseDir("ArrowLeft")}
-          className="h-14 w-14 touch-none rounded-xl bg-white text-2xl shadow active:bg-sky-50"
+          className="h-14 w-14 touch-none select-none rounded-xl bg-white text-2xl font-bold text-slate-900 shadow active:bg-sky-50"
         >
           ⬅
         </button>
@@ -447,7 +447,7 @@ export default function MathFacts({ kidId, grade }: { kidId: string; grade: Grad
           onPointerDown={() => pressDir("ArrowRight")}
           onPointerUp={() => releaseDir("ArrowRight")}
           onPointerLeave={() => releaseDir("ArrowRight")}
-          className="h-14 w-14 touch-none rounded-xl bg-white text-2xl shadow active:bg-sky-50"
+          className="h-14 w-14 touch-none select-none rounded-xl bg-white text-2xl font-bold text-slate-900 shadow active:bg-sky-50"
         >
           ➡
         </button>

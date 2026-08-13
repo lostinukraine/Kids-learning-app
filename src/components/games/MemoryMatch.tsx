@@ -3,14 +3,34 @@
 import { useEffect, useRef, useState } from "react";
 import { recordGameSession } from "@/lib/record-session";
 import type { Tier } from "@/lib/grade-tiers";
+import DifficultyGate from "@/components/DifficultyGate";
+import { type Difficulty } from "@/lib/difficulty";
 
 const EMOJI_POOL = ["🐶", "🐱", "🐵", "🦊", "🐼", "🐸", "🦁", "🐰", "🐨", "🐷", "🐮", "🐯", "🦄", "🐔"];
 
+// Grade tier alone made Pre-K/K a fixed, easy 6 pairs no matter what — fine
+// for a first-time player, but nothing to grow into once a kid outpaces it.
+// "Medium" keeps each tier's original pair count so nothing changes for
+// anyone who always just plays the default; "easy"/"hard"/"expert" widen out
+// from there. Clamped to the emoji pool size (14) so hard/expert on the
+// oldest tier can't ask for more distinct pairs than exist to draw from.
 const PAIRS_BY_TIER: Record<Tier, number> = {
   PRE_K_K: 6,
   FIRST_SECOND: 8,
   THIRD_FIFTH: 12,
 };
+
+const DIFFICULTY_OFFSET: Record<Difficulty, number> = {
+  easy: -2,
+  medium: 0,
+  hard: 2,
+  expert: 4,
+};
+
+function pairsFor(tier: Tier, difficulty: Difficulty): number {
+  const raw = PAIRS_BY_TIER[tier] + DIFFICULTY_OFFSET[difficulty];
+  return Math.max(4, Math.min(EMOJI_POOL.length, raw));
+}
 
 interface CardState {
   key: string;
@@ -39,7 +59,8 @@ function buildDeck(pairCount: number): CardState[] {
 }
 
 export default function MemoryMatch({ kidId, tier }: { kidId: string; tier: Tier }) {
-  const pairCount = PAIRS_BY_TIER[tier];
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const pairCount = difficulty ? pairsFor(tier, difficulty) : PAIRS_BY_TIER[tier];
   const [deck, setDeck] = useState<CardState[]>(() => buildDeck(pairCount));
   const [flipped, setFlipped] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -97,11 +118,37 @@ export default function MemoryMatch({ kidId, tier }: { kidId: string; tier: Tier
     startedAt.current = new Date();
   }
 
+  function chooseDifficulty(chosen: Difficulty) {
+    setDifficulty(chosen);
+    setDeck(buildDeck(pairsFor(tier, chosen)));
+    setFlipped([]);
+    setMoves(0);
+    startedAt.current = new Date();
+  }
+
+  if (!difficulty) {
+    return (
+      <DifficultyGate
+        title="Choose a difficulty"
+        description="Harder difficulties add more pairs to remember."
+        onSelect={chooseDifficulty}
+      />
+    );
+  }
+
   const cols = pairCount <= 6 ? 4 : pairCount <= 8 ? 4 : 6;
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="text-sm font-semibold text-slate-600">Moves: {moves}</p>
+      <div className="flex items-center gap-3">
+        <p className="text-sm font-semibold text-slate-600">Moves: {moves}</p>
+        <button
+          onClick={() => setDifficulty(null)}
+          className="text-xs font-medium text-slate-400 underline hover:text-slate-600"
+        >
+          Change difficulty
+        </button>
+      </div>
       <div
         className="grid gap-3"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
