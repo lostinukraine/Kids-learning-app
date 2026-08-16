@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Tier } from "@/lib/grade-tiers";
+import { tierForGrade, type Tier } from "@/lib/grade-tiers";
 import type { GradeLevel } from "@prisma/client";
 import type { GameSlug } from "@/lib/games-catalog";
 import TicTacToe from "./games/TicTacToe";
@@ -22,6 +22,7 @@ import WordBlaster from "./games/WordBlaster";
 import StarHopper from "./games/StarHopper";
 import RaceTrack from "./games/RaceTrack";
 import Farm from "./games/Farm";
+import WheelOfFortune from "./games/WheelOfFortune";
 
 export default function GameShell({
   kidId,
@@ -38,6 +39,7 @@ export default function GameShell({
   mathGrade: GradeLevel;
   readingGrade: GradeLevel;
 }) {
+  const readingTier = tierForGrade(readingGrade);
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-100 to-emerald-50 px-4 py-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -70,6 +72,7 @@ export default function GameShell({
           {slug === "star-hopper" && <StarHopper kidId={kidId} />}
           {slug === "race-track" && <RaceTrack kidId={kidId} />}
           {slug === "farm" && <Farm kidId={kidId} />}
+          {slug === "wheel-of-fortune" && <WheelOfFortune kidId={kidId} tier={readingTier} />}
         </div>
       </div>
     </main>
